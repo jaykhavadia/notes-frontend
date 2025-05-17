@@ -11,6 +11,10 @@ import {
   ListItemText,
   IconButton,
   Typography,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { NotesContext } from '../context/NotesContext';
@@ -18,6 +22,7 @@ import { NotesContext } from '../context/NotesContext';
 export default function ShareModal({ note, onClose }) {
   const { updateNote, shareNote } = useContext(NotesContext);
   const [email, setEmail] = useState('');
+  const [permission, setPermission] = useState('read');
   const [error, setError] = useState('');
 
   const handleShare = () => {
@@ -26,18 +31,24 @@ export default function ShareModal({ note, onClose }) {
       setError('Please enter a valid email');
       return;
     }
-    shareNote(note._id, email.trim());
+    // Check if email already in collaborators
+    if (note.collaborators.some((c) => c.userEmail === email.trim())) {
+      setError('User already a collaborator');
+      return;
+    }
+    shareNote(note.id, email.trim(), permission);
     setEmail('');
+    onClose();
   };
 
-  const handleRemoveShare = (emailToRemove) => {
-    const newSharedWith = note.sharedWith.filter((e) => e !== emailToRemove);
-    updateNote(note._id, { sharedWith: newSharedWith });
+  const handleRemoveShare = (userEmailToRemove) => {
+    const newCollaborators = note.collaborators.filter((c) => c.userEmail !== userEmailToRemove);
+    updateNote(note.id, { collaborators: newCollaborators });
   };
 
   return (
     <Dialog open onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>Share Note: {note.label}</DialogTitle>
+      <DialogTitle>Share Note: {note.title}</DialogTitle>
       <DialogContent>
         <TextField
           label="Email to share with"
@@ -48,6 +59,18 @@ export default function ShareModal({ note, onClose }) {
           error={Boolean(error)}
           helperText={error}
         />
+        <FormControl fullWidth margin="normal">
+          <InputLabel id="permission-label">Permission</InputLabel>
+          <Select
+            labelId="permission-label"
+            value={permission}
+            label="Permission"
+            onChange={(e) => setPermission(e.target.value)}
+          >
+            <MenuItem value="read">Read</MenuItem>
+            <MenuItem value="write">Write</MenuItem>
+          </Select>
+        </FormControl>
         <Button variant="contained" fullWidth onClick={handleShare}>
           Share
         </Button>
@@ -55,17 +78,17 @@ export default function ShareModal({ note, onClose }) {
           Shared With:
         </Typography>
         <List dense>
-          {note.sharedWith.length === 0 && <Typography>No one yet.</Typography>}
-          {note.sharedWith.map((email) => (
+          {note.collaborators.length === 0 && <Typography>No one yet.</Typography>}
+          {note.collaborators.map((collab) => (
             <ListItem
-              key={email}
+              key={collab.userEmail}
               secondaryAction={
-                <IconButton edge="end" onClick={() => handleRemoveShare(email)}>
+                <IconButton edge="end" onClick={() => handleRemoveShare(collab.userEmail)}>
                   <DeleteIcon />
                 </IconButton>
               }
             >
-              <ListItemText primary={email} />
+              <ListItemText primary={`${collab.userEmail} (${collab.permission})`} />
             </ListItem>
           ))}
         </List>

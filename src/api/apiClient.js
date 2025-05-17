@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:4000/api'; // Change to your backend URL
+const API_BASE = 'http://localhost:8080/api'; // Change to your backend URL
 
 export async function apiFetch(endpoint, options = {}) {
   const token = localStorage.getItem('auth_token');

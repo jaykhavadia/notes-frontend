@@ -34,7 +34,7 @@ export function AuthProvider({ children }) {
   };
 
   const signup = async (userData) => {
-    const data = await apiFetch('/auth/signup', {
+    const data = await apiFetch('/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData),
     });

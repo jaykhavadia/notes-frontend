@@ -1,30 +1,92 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { AuthContext } from './AuthContext';
 import { apiFetch } from '../api/apiClient';
+import { SocketContext } from './SocketContext';
 
 export const NotesContext = createContext();
 
 export function NotesProvider({ children }) {
   const { user } = useContext(AuthContext);
-  const [notes, setNotes] = useState([]);
+  const socket = useContext(SocketContext);
+  const [myNotes, setMyNotes] = useState([]);
+  const [sharedNotes, setSharedNotes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0 });
   const [searchTerm, setSearchTerm] = useState('');
+  const [notifications, setNotifications] = useState([]);
 
   const fetchNotes = async (page = 1, limit = 10, search = '') => {
     setLoading(true);
     const params = new URLSearchParams({ page, limit, search });
     const data = await apiFetch(`/notes?${params.toString()}`);
-    setNotes(data.notes);
+    // Separate notes into owned and shared based on createdBy and collaborators
+    const owned = [];
+    const shared = [];
+    data.notes.forEach((note) => {
+      // Rename label to title for consistency
+      const normalizedNote = {
+        ...note,
+        title: note.label || note.title,
+        id: note._id || note.id,
+      };
+      if (note.createdBy._id === user._id) {
+        owned.push(normalizedNote);
+      } else {
+        shared.push(normalizedNote);
+      }
+    });
+    setMyNotes(owned);
+    setSharedNotes(shared);
     setPagination({ page: data.page, limit: data.limit, total: data.total });
     setLoading(false);
   };
 
   useEffect(() => {
+    if (!socket) return;
+    socket.on('noteUpdated', (updatedNote) => {
+      console.log('Socket event: noteUpdated', updatedNote);
+      setMyNotes((prevNotes) =>
+        prevNotes.map((note) => (note.id === updatedNote.id ? updatedNote : note))
+      );
+      setSharedNotes((prevNotes) =>
+        prevNotes.map((note) => (note.id === updatedNote.id ? updatedNote : note))
+      );
+    });
+
+    socket.on('noteDeleted', (deletedNoteId) => {
+      console.log('Socket event: noteDeleted', deletedNoteId);
+      setMyNotes((prevNotes) => prevNotes.filter((note) => note.id !== deletedNoteId));
+      setSharedNotes((prevNotes) => prevNotes.filter((note) => note.id !== deletedNoteId));
+    });
+
+    socket.on('noteCreated', (newNote) => {
+      console.log('Socket event: noteCreated', newNote);
+      if (newNote.createdBy === user._id) {
+        setMyNotes((prevNotes) => [newNote, ...prevNotes]);
+      } else {
+        setSharedNotes((prevNotes) => [newNote, ...prevNotes]);
+      }
+      // Add notification for new note
+      setNotifications((prev) => [
+        ...prev,
+        { id: newNote.id, message: `New note created: ${newNote.title}` },
+      ]);
+    });
+
+    return () => {
+      socket.off('noteUpdated');
+      socket.off('noteDeleted');
+      socket.off('noteCreated');
+    };
+  }, [socket, user]);
+
+  useEffect(() => {
     if (user) {
       fetchNotes(pagination.page, pagination.limit, searchTerm);
     } else {
-      setNotes([]);
+      setMyNotes([]);
+      setSharedNotes([]);
+      setNotifications([]);
     }
   }, [user, pagination.page, pagination.limit, searchTerm]);
 
@@ -49,10 +111,10 @@ export function NotesProvider({ children }) {
     fetchNotes(pagination.page, pagination.limit, searchTerm);
   };
 
-  const shareNote = async (id, email) => {
+  const shareNote = async (id, email, permission) => {
     await apiFetch(`/notes/${id}/share`, {
-      method: 'POST',
-      body: JSON.stringify({ email }),
+      method: 'PUT',
+      body: JSON.stringify({ email, permission }),
     });
     fetchNotes(pagination.page, pagination.limit, searchTerm);
   };
@@ -60,7 +122,8 @@ export function NotesProvider({ children }) {
   return (
     <NotesContext.Provider
       value={{
-        notes,
+        myNotes,
+        sharedNotes,
         loading,
         pagination,
         searchTerm,
@@ -71,6 +134,7 @@ export function NotesProvider({ children }) {
         deleteNote,
         shareNote,
         fetchNotes,
+        notifications,
       }}
     >
       {children}

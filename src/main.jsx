@@ -6,6 +6,7 @@ import { NotesProvider } from './context/NotesContext';
 
 import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { SocketProvider } from './context/SocketContext';
 
 const theme = createTheme({
   palette: {
@@ -18,9 +19,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <AuthProvider>
-        <NotesProvider>
-          <App />
-        </NotesProvider>
+        <SocketProvider>
+          <NotesProvider>
+            <App />
+          </NotesProvider>
+        </SocketProvider>
       </AuthProvider>
     </ThemeProvider>
   </React.StrictMode>

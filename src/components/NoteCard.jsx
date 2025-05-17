@@ -9,7 +9,7 @@ import {
   Stack,
 } from '@mui/material';
 
-export default function NoteCard({ note, onEdit, onShare }) {
+export default function NoteCard({ note, onEdit, onShare, isReadOnly }) {
   return (
     <Card variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <CardContent sx={{ flexGrow: 1 }}>
@@ -30,9 +30,11 @@ export default function NoteCard({ note, onEdit, onShare }) {
         <Button size="small" onClick={onEdit}>
           Edit
         </Button>
-        <Button size="small" onClick={onShare}>
-          Share
-        </Button>
+        {!isReadOnly &&
+          <Button size="small" onClick={onShare}>
+            Share
+          </Button>
+        }
       </CardActions>
     </Card>
   );
