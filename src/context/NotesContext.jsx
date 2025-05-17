@@ -15,7 +15,7 @@ export function NotesProvider({ children }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [notifications, setNotifications] = useState([]);
 
-  const fetchNotes = async (page = 1, limit = 10, search = '') => {
+const fetchNotes = async (page = 1, limit = 10, search = '') => {
     setLoading(true);
     const params = new URLSearchParams({ page, limit, search });
     const data = await apiFetch(`/notes?${params.toString()}`);
@@ -29,7 +29,12 @@ export function NotesProvider({ children }) {
         title: note.label || note.title,
         id: note._id || note.id,
       };
-      if (note.createdBy._id === user._id) {
+
+      // Normalize IDs to strings for comparison
+      const noteCreatorId = typeof note.createdBy === 'string' ? note.createdBy : (note.createdBy._id || note.createdBy.id);
+      const userId = user?._id || user?.id;
+
+      if (String(noteCreatorId) === String(userId)) {
         owned.push(normalizedNote);
       } else {
         shared.push(normalizedNote);

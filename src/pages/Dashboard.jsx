@@ -89,7 +89,6 @@ export default function Dashboard() {
                   setEditingNote(null);
                   setIsCreating(false);
                 }}
-                isReadOnly={tabIndex === 1}
               />
             )}
 

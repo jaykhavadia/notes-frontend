@@ -13,16 +13,19 @@ import {
   Alert,
 } from '@mui/material';
 import { NotesContext } from '../context/NotesContext';
+import { AuthContext } from '../context/AuthContext';
 
-export default function NoteEditor({ note, onClose, isReadOnly }) {
+export default function NoteEditor({ note, onClose }) {
   const isEditMode = Boolean(note);
   const { createNote, updateNote } = useContext(NotesContext);
+  const { user } = useContext(AuthContext);
 
   const [title, setTitle] = useState(note?.title || '');
   const [content, setContent] = useState(note?.content || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [collaborators, setCollaborators] = useState(note?.collaborators || []);
+  const [hasWritePermission, setHasWritePermission] = useState(false);
 
   const saveTimeout = useRef(null);
 
@@ -30,12 +33,21 @@ export default function NoteEditor({ note, onClose, isReadOnly }) {
     setTitle(note?.title || '');
     setContent(note?.content || '');
     setCollaborators(note?.collaborators || []);
+    console.log("🚀 ~ NoteEditor ~ note:", note?.collaborators);
+    // Determine if current user has write permission
+    note?.collaborators.forEach(
+      (collab) => {
+        if (collab.userId === user?._id) {
+          console.log("🚀 ~ useEffect ~ collab:", collab)
+          setHasWritePermission(() => collab.permission === 'write');
+        }
+      })
     setError(null);
   }, [note]);
 
   // Debounced autosave every 5 seconds or on blur
   useEffect(() => {
-    if (isReadOnly) return; // Do not save if read-only
+    if (hasWritePermission) return; // Do not save if read-only
   }, [title, content]);
 
   const handleSave = async () => {
@@ -56,7 +68,7 @@ export default function NoteEditor({ note, onClose, isReadOnly }) {
   };
 
   const handleBlur = () => {
-    if (isReadOnly) return;
+    if (hasWritePermission) return;
     if (saveTimeout.current) {
       clearTimeout(saveTimeout.current);
     }
@@ -88,7 +100,7 @@ export default function NoteEditor({ note, onClose, isReadOnly }) {
           onChange={(e) => setTitle(e.target.value)}
           onBlur={handleBlur}
           autoFocus
-          disabled={isReadOnly || saving}
+          disabled={!hasWritePermission || saving}
         />
         <TextField
           label="Content"
@@ -99,7 +111,7 @@ export default function NoteEditor({ note, onClose, isReadOnly }) {
           value={content}
           onChange={(e) => setContent(e.target.value)}
           onBlur={handleBlur}
-          disabled={isReadOnly || saving}
+          disabled={!hasWritePermission || saving}
         />
         <Box sx={{ mt: 2 }}>
           <Typography variant="subtitle1">Collaborators:</Typography>
@@ -117,7 +129,7 @@ export default function NoteEditor({ note, onClose, isReadOnly }) {
         <Button onClick={handleCancel} disabled={saving}>
           Cancel
         </Button>
-        <Button onClick={handleSave} disabled={saving || isReadOnly}>
+        <Button onClick={handleSave} disabled={saving || !hasWritePermission}>
           {isEditMode ? 'Save' : 'Add'}
         </Button>
         {saving && (
