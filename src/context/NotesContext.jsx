@@ -43,8 +43,8 @@ export function NotesProvider({ children }) {
 
   useEffect(() => {
     if (!socket) return;
-    socket.on('noteUpdated', (updatedNote) => {
-      console.log('Socket event: noteUpdated', updatedNote);
+    socket.on('note:updated', (updatedNote) => {
+      console.log('Socket event: note:updated', updatedNote);
       setMyNotes((prevNotes) =>
         prevNotes.map((note) => (note.id === updatedNote.id ? updatedNote : note))
       );
@@ -53,14 +53,14 @@ export function NotesProvider({ children }) {
       );
     });
 
-    socket.on('noteDeleted', (deletedNoteId) => {
-      console.log('Socket event: noteDeleted', deletedNoteId);
+    socket.on('note:deleted', (deletedNoteId) => {
+      console.log('Socket event: note:deleted', deletedNoteId);
       setMyNotes((prevNotes) => prevNotes.filter((note) => note.id !== deletedNoteId));
       setSharedNotes((prevNotes) => prevNotes.filter((note) => note.id !== deletedNoteId));
     });
 
-    socket.on('noteCreated', (newNote) => {
-      console.log('Socket event: noteCreated', newNote);
+    socket.on('note:created', (newNote) => {
+      console.log('Socket event: note:created', newNote);
       if (newNote.createdBy === user._id) {
         setMyNotes((prevNotes) => [newNote, ...prevNotes]);
       } else {
@@ -73,10 +73,39 @@ export function NotesProvider({ children }) {
       ]);
     });
 
+    socket.on('note:shared', (sharedNote) => {
+      console.log('Socket event: note:shared', sharedNote);
+      if (sharedNote.createdBy === user._id) {
+        setMyNotes((prevNotes) => {
+          const exists = prevNotes.some((note) => note.id === sharedNote.id);
+          if (exists) {
+            return prevNotes.map((note) => (note.id === sharedNote.id ? sharedNote : note));
+          } else {
+            return [sharedNote, ...prevNotes];
+          }
+        });
+      } else {
+        setSharedNotes((prevNotes) => {
+          const exists = prevNotes.some((note) => note.id === sharedNote.id);
+          if (exists) {
+            return prevNotes.map((note) => (note.id === sharedNote.id ? sharedNote : note));
+          } else {
+            return [sharedNote, ...prevNotes];
+          }
+        });
+      }
+      // Add notification for shared note
+      setNotifications((prev) => [
+        ...prev,
+        { id: sharedNote.id, message: `Note shared with you: ${sharedNote.title}` },
+      ]);
+    });
+
     return () => {
-      socket.off('noteUpdated');
-      socket.off('noteDeleted');
-      socket.off('noteCreated');
+      socket.off('note:updated');
+      socket.off('note:deleted');
+      socket.off('note:created');
+      socket.off('note:shared');
     };
   }, [socket, user]);
 
