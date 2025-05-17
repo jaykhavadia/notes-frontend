@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useContext, useEffect } from 'react';
 import {
   Container,
   TextField,
@@ -10,13 +10,18 @@ import {
 } from '@mui/material';
 import { AuthContext } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useFormik } from 'formik';
+import * as yup from 'yup';
+
+const validationSchema = yup.object({
+  email: yup.string().email('Enter a valid email').required('Email is required'),
+  password: yup.string().required('Password is required'),
+});
 
 export default function Login() {
   const navigate = useNavigate();
   const { user, loading, login } = useContext(AuthContext);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = React.useState('');
 
   useEffect(() => {
     if (!loading && user) {
@@ -24,16 +29,22 @@ export default function Login() {
     }
   }, [user, loading, navigate]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    try {
-      await login(email, password);
-      navigate('/');
-    } catch (err) {
-      setError(err.message || 'Failed to login');
-    }
-  };
+  const formik = useFormik({
+    initialValues: {
+      email: '',
+      password: '',
+    },
+    validationSchema: validationSchema,
+    onSubmit: async (values) => {
+      setError('');
+      try {
+        await login(values.email, values.password);
+        navigate('/');
+      } catch (err) {
+        setError(err.message || 'Failed to login');
+      }
+    },
+  });
 
   return (
     <Container maxWidth="xs" sx={{ mt: 8 }}>
@@ -45,15 +56,19 @@ export default function Login() {
           {error}
         </Alert>
       )}
-      <Box component="form" onSubmit={handleSubmit} noValidate>
+      <Box component="form" onSubmit={formik.handleSubmit} noValidate>
         <TextField
           label="Email"
           type="email"
           required
           fullWidth
           margin="normal"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          name="email"
+          value={formik.values.email}
+          onChange={formik.handleChange}
+          onBlur={formik.handleBlur}
+          error={formik.touched.email && Boolean(formik.errors.email)}
+          helperText={formik.touched.email && formik.errors.email}
           autoFocus
         />
         <TextField
@@ -62,8 +77,12 @@ export default function Login() {
           required
           fullWidth
           margin="normal"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          name="password"
+          value={formik.values.password}
+          onChange={formik.handleChange}
+          onBlur={formik.handleBlur}
+          error={formik.touched.password && Boolean(formik.errors.password)}
+          helperText={formik.touched.password && formik.errors.password}
         />
         <Button type="submit" variant="contained" fullWidth sx={{ mt: 3 }}>
           Login

@@ -33,13 +33,14 @@ export default function NoteEditor({ note, onClose }) {
     setTitle(note?.title || '');
     setContent(note?.content || '');
     setCollaborators(note?.collaborators || []);
-    console.log("🚀 ~ NoteEditor ~ note:", note?.collaborators);
     // Determine if current user has write permission
     note?.collaborators.forEach(
       (collab) => {
         if (collab.userId === user?._id) {
           console.log("🚀 ~ useEffect ~ collab:", collab)
           setHasWritePermission(() => collab.permission === 'write');
+        } else {
+          setHasWritePermission(() => note.createdBy._id === user?._id);
         }
       })
     setError(null);
@@ -100,7 +101,7 @@ export default function NoteEditor({ note, onClose }) {
           onChange={(e) => setTitle(e.target.value)}
           onBlur={handleBlur}
           autoFocus
-          disabled={!hasWritePermission || saving}
+          disabled={(!hasWritePermission && isEditMode) || saving}
         />
         <TextField
           label="Content"
@@ -111,7 +112,7 @@ export default function NoteEditor({ note, onClose }) {
           value={content}
           onChange={(e) => setContent(e.target.value)}
           onBlur={handleBlur}
-          disabled={!hasWritePermission || saving}
+          disabled={(!hasWritePermission && isEditMode) || saving}
         />
         <Box sx={{ mt: 2 }}>
           <Typography variant="subtitle1">Collaborators:</Typography>
@@ -129,7 +130,7 @@ export default function NoteEditor({ note, onClose }) {
         <Button onClick={handleCancel} disabled={saving}>
           Cancel
         </Button>
-        <Button onClick={handleSave} disabled={saving || !hasWritePermission}>
+        <Button onClick={handleSave} disabled={saving || !hasWritePermission && isEditMode}>
           {isEditMode ? 'Save' : 'Add'}
         </Button>
         {saving && (
